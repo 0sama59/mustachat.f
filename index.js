@@ -1,14 +1,20 @@
-const express = require('express');
-const { WebSocketServer } = require('ws');
-const path = require('path');
-const fs = require('fs'); 
 import express from 'express';
-import { WebSocketServer } from 'ws'; 
+import { WebSocketServer } from 'ws';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url'; // Required to safely handle __dirname in ES Modules
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
-const PORT = 3000;
+// IMPORTANT: Render automatically provides the PORT environment variable. 
+// We must use process.env.PORT, falling back to 3000 for local testing.
+const PORT = process.env.PORT || 3000; 
 const BANS_FILE = 'bans.json'; 
 
 // Serve static files (like index.html, script.js, style.css) from the 'public' directory
+// NOTE: Make sure your static files are inside a folder named 'public' at the root of your repo.
 app.use(express.static(path.join(__dirname, 'public'))); 
 
 // Start the HTTP server
@@ -29,8 +35,10 @@ const badWords = ["stupid","idiot","dumb","fuck","bitch","motherfucker","mf","di
 // Loads active bans from bans.json upon server startup
 function loadBans() {
     try {
-        if (fs.existsSync(BANS_FILE)) {
-            const data = fs.readFileSync(BANS_FILE, 'utf8');
+        // Use path.resolve() for robust file path handling
+        const bansPath = path.resolve(__dirname, BANS_FILE);
+        if (fs.existsSync(bansPath)) {
+            const data = fs.readFileSync(bansPath, 'utf8');
             const bansArray = JSON.parse(data);
             
             const now = Date.now();
@@ -53,7 +61,8 @@ function saveBans() {
         const bansArray = Array.from(bannedUsers.entries()).map(([nick, unbanDate]) => 
             [nick, unbanDate.getTime()]
         );
-        fs.writeFileSync(BANS_FILE, JSON.stringify(bansArray, null, 2), 'utf8');
+        const bansPath = path.resolve(__dirname, BANS_FILE);
+        fs.writeFileSync(bansPath, JSON.stringify(bansArray, null, 2), 'utf8');
     } catch (e) {
         console.error(`Error saving bans: ${e.message}`);
     }
