@@ -1,10 +1,15 @@
-"name": "vercel-node-app",
-"version": "1.0.0",
-"description": "Dependencies for Vercel Serverless Functions",
-"main": "api/time.js",
-"scripts": {
-"start": "echo 'No dedicated start script needed for Vercel functions'"
-},
-"dependencies": {
-"axios": "^1.6.2",
-"dotenv": "^16.3.1"
+{
+  "name": "mustachat-server",
+  "version": "1.0.0",
+  "description": "The backend Node.js server for the MustaChat real-time application, configured for persistent hosting.",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0",
+    "cors": "^2.8.5"
+  }
+}
