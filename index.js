@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url'; // Required to safely handle __dirname in ES Modules
 
+const socket = new WebSocket('wss://your-render-service-name.onrender.com');
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -318,3 +319,4 @@ wss.on('connection', ws => {
     });
 
 });
+
