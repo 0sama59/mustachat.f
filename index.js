@@ -2,41 +2,46 @@ import express from 'express';
 import { WebSocketServer } from 'ws';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url'; // Required to safely handle __dirname in ES Modules
+import { fileURLToPath } from 'url'; 
 
-const socket = new WebSocket('wss://your-render-service-name.onrender.com');
+// --- SETUP ---
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-// IMPORTANT: Render automatically provides the PORT environment variable. 
-// We must use process.env.PORT, falling back to 3000 for local testing.
+// CRITICAL: Use the PORT provided by the hosting environment (Render).
 const PORT = process.env.PORT || 3000; 
-const BANS_FILE = 'bans.json'; 
 
-// Serve static files (like index.html, script.js, style.css) from the 'public' directory
-// NOTE: Make sure your static files are inside a folder named 'public' at the root of your repo.
+// REMOVED: const socket = new WebSocket('wss://your-render-service-name.onrender.com');
+// This line belongs ONLY in your client-side public/script.js file.
+
+const BANS_FILE = 'bans.json';
+
+// Serve static files from the 'public' directory
 app.use(express.static(path.join(__dirname, 'public'))); 
 
 // Start the HTTP server
-const server = app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+const server = app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 // Initialize WebSocket Server on the same HTTP server
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ 
+    server: server,
+    // Optional: Add a verifyClient function here if you need strict CORS/Origin control
+});
+
+// --- STATE MANAGEMENT ---
 const clients = new Map(); // Maps WebSocket connections to nicknames
 const mutedUsers = new Set(); // Stores lowercase nicknames of currently muted users
 let bannedUsers = new Map(); // Stores banned nicknames and their unban time
-let isChatFrozen = false; // Tracks if the chat is frozen globally
-
-// List of prohibited words for auto-banning
+let isChatFrozen = false; 
 const badWords = ["stupid","idiot","dumb","fuck","bitch","motherfucker","mf","dick","pussy","nigger"];
 
-// --- PERSISTENCE FUNCTIONS (Handles reading/writing bans.json) ---
+
+// --- PERSISTENCE FUNCTIONS ---
 
 // Loads active bans from bans.json upon server startup
 function loadBans() {
     try {
-        // Use path.resolve() for robust file path handling
         const bansPath = path.resolve(__dirname, BANS_FILE);
         if (fs.existsSync(bansPath)) {
             const data = fs.readFileSync(bansPath, 'utf8');
@@ -44,7 +49,6 @@ function loadBans() {
             
             const now = Date.now();
             bansArray.forEach(([nick, unbanTime]) => {
-                // Only load bans that have not yet expired
                 if (unbanTime > now) {
                     bannedUsers.set(nick, new Date(unbanTime));
                 }
@@ -74,11 +78,9 @@ function isBanned(nick) {
     const banTime = bannedUsers.get(nick);
     if (!banTime) return false;
 
-    // Check if ban has expired
     if (banTime.getTime() > Date.now()) {
         return true; 
     } else {
-        // Ban expired, remove it and save
         bannedUsers.delete(nick); 
         saveBans(); 
         return false;
@@ -107,7 +109,6 @@ function broadcastChat(nick, text) {
 // Sends a direct action (ban/kick) message to a specific user
 function sendAction(targetName, type, minutes) {
     if (type === "ban") {
-        // Set persistent ban record
         const unbanTime = Date.now() + (minutes * 60 * 1000);
         bannedUsers.set(targetName, new Date(unbanTime));
         saveBans(); 
@@ -258,18 +259,16 @@ wss.on('connection', ws => {
                 else if (cmd === "/mute" && target) {
                     const lowerTarget = target.toLowerCase();
                     if (mutedUsers.has(lowerTarget)) {
-                        // User is already muted. Do nothing but inform the admin.
                          broadcastChat("SYSTEM", `User ${target} is already muted.`);
                     } else {
-                        // Not muted, so muting
                         mutedUsers.add(lowerTarget);
                         broadcastChat("SYSTEM", `Admin muted ${target}.`);
                     }
                 }
-                // /unmute (NEW EXPLICIT COMMAND)
+                // /unmute
                 else if (cmd === "/unmute" && target) {
                     const lowerTarget = target.toLowerCase();
-                    if (mutedUsers.delete(lowerTarget)) { // delete returns true if the element existed
+                    if (mutedUsers.delete(lowerTarget)) {
                         broadcastChat("SYSTEM", `Admin unmuted ${target}.`);
                     } else {
                         broadcastChat("SYSTEM", `User ${target} is not currently muted.`);
@@ -287,7 +286,7 @@ wss.on('connection', ws => {
                     wss.clients.forEach(c => { if (c.readyState === c.OPEN) c.send(clearData); });
                     broadcastChat("SYSTEM", `Admin cleared the chat history for everyone.`);
                 }
-                // /unban (manual removal of persistent ban)
+                // /unban
                 else if (cmd === "/unban" && target) { 
                     if (bannedUsers.delete(target)) {
                         saveBans();
@@ -319,4 +318,3 @@ wss.on('connection', ws => {
     });
 
 });
-
