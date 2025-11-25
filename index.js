@@ -2,7 +2,8 @@ const express = require('express');
 const { WebSocketServer } = require('ws');
 const path = require('path');
 const fs = require('fs'); 
-
+import express from 'express';
+import { WebSocketServer } from 'ws'; 
 const app = express();
 const PORT = 3000;
 const BANS_FILE = 'bans.json'; 
@@ -306,4 +307,5 @@ wss.on('connection', ws => {
         }
         broadcastUsers();
     });
+
 });
